@@ -1,5 +1,5 @@
 # Chester
-# Preamble #
+## Preamble ##
 I am a bot who can provide users with random quotes on demand or daily in addition 
 to my capacity as a LLM chat agent with GK Chesterton's personality. 
 
@@ -12,7 +12,7 @@ I'm here to assist people at any time of the day or night with their inquiries,
 providing information and advice on everything from philosophy to religion, 
 from literature to culture. I hope you will use me often!
 
-# Usage Instructions #
+## Usage Instructions ##
 I run using node.js. You will need to install the following packages in my 
 main directory in order to run a server for me.
 
