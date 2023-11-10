@@ -157,9 +157,20 @@ client.on('messageCreate', async (message) => {
     if (message.mentions.everyone || message.content.includes('@everyone') || message.content.includes('@here')) { // Check if the message mentions @everyone or @here.
         return;
     }
-	let mentionedRoles = message.mentions.roles.array();
+	let mentionedRoles = [];
+	if (message.mentions.roles.size > 0) {
+        // Iterate over the mentioned roles.
+        message.mentions.roles.forEach((mentionedRole) => {
+            const roleName = mentionedRole.name;
+            const roleId = mentionedRole.id;
+
+            console.log(`Mentioned Role: ${roleName} (ID: ${roleId})`);
+			mentionedRoles.append(roleId);
+        });
+    }
+
 	let bot_Chester_rolename_used = false;
-	if (length(mentionedRoles) > 0) {
+	if (mentionedRoles.size > 0) {
 		mentionedRoles.forEach(mentionedRole => {
 			const roleName = mentionedRole.name;
 			if ((roleName == "Chester") && (client.user.roles.cache.has(mentionedRole))) { // if the bot has a role named "Chester", which is common, and a user mentions that role,
