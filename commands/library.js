@@ -49,7 +49,10 @@ module.exports = {
             }
           
             // Filter out only text files (.txt extension)
-            const textFiles = files.filter(file => path.extname(file).toLowerCase() === '.txt');
+            const textFiles = files.filter(file => {
+              const ext = path.extname(file).toLowerCase();
+              return ext === '.txt' || ext === '.pdf';
+            });
           
             if (textFiles.length > 0) {
               const firstTextFile = textFiles[0];
@@ -66,7 +69,7 @@ module.exports = {
               found = true;
               return;
             } else {
-              console.log('No text files found in the directory.');
+              console.log('No acceptable files found in the directory.');
             }
           });
         }
