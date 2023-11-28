@@ -58,13 +58,12 @@ module.exports = {
 		.setDescription('Replies with a random Chesterton quote!'),
 	async execute(interaction) {
 		if (ready) {
-			const randomQuote = allQuotes[Math.floor(Math.random() * allQuotes.length)];
-			console.log("quote selected...");
-			await interaction.reply(randomQuote);
+      const randomQuote = allQuotes[Math.floor(Math.random() * allQuotes.length)];
+      console.log("quote selected...");
+      await interaction.reply(randomQuote);
 		} else {
-			await interaction.reply("Hold on, I am still thinking.");
+			await interaction.reply({ content: "Hold on, I am still thinking.", ephemeral: true});
 		}
 	},
 	allQuotes
 };
-
