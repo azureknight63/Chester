@@ -14,3 +14,4 @@ package.json
 info.txt
 package-lock.json
 package.json
+.env
