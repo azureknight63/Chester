@@ -1,8 +1,9 @@
 const fs = require('node:fs');
 const path = require('node:path');
+require('dotenv').config();
 const { Client, Events, GatewayIntentBits, Collection, SlashCommandBuilder } = require('discord.js');
-const { token } = require('./config.json');
-const client = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
+const discordToken = process.env.DISCORD_TOKEN;
+const discordClient = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
 const cron = require('node-cron');
 const filePath = 'daily_list.json';
 
@@ -110,7 +111,7 @@ let cai_login_timeout =
 
 // end Chatbot setup
 
-client.commands = new Collection();
+discordClient.commands = new Collection();
 
 const commandsPath = path.join(__dirname, 'commands');
 const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -120,7 +121,7 @@ for (const file of commandFiles) {
 	const command = require(filePath);
 	// Set a new item in the Collection with the key as the command name and the value as the exported module
 	if ('data' in command && 'execute' in command) {
-		client.commands.set(command.data.name, command);
+		discordClient.commands.set(command.data.name, command);
 	} else {
 		console.log(`[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`);
 	}
@@ -145,7 +146,7 @@ fs.access(filePath, fs.constants.F_OK, (err) => {
   }
 });
 
-client.on(Events.InteractionCreate, async interaction => {
+discordClient.on(Events.InteractionCreate, async interaction => {
 	console.log(`${interaction.user.tag} in #${interaction.channel.name} triggered an interaction.`);
 	if (interaction.isChatInputCommand()) {
 		const command = interaction.client.commands.get(interaction.commandName);
@@ -184,13 +185,13 @@ client.on(Events.InteractionCreate, async interaction => {
 	}
 });
 
-client.login(token);
+discordClient.login(discordToken);
 
-client.on('ready', () => {
-  console.log(`Logged in to Discord as ${client.user.tag}!`);
+discordClient.on('ready', () => {
+  console.log(`Logged in to Discord as ${discordClient.user.tag}!`);
 });
 
-client.on('messageCreate', async (message) => {
+discordClient.on('messageCreate', async (message) => {
 	console.log("A message!");
 	try {
 		if (message.author.bot) { return false; } // Do not respond to this bot's own messages. That would be silly.
@@ -213,15 +214,15 @@ client.on('messageCreate', async (message) => {
 		if (mentionedRoles.size > 0) {
 			mentionedRoles.forEach(mentionedRole => {
 				const roleName = mentionedRole.name;
-				if ((roleName == "Chester") && (client.user.roles.cache.has(mentionedRole))) { // if the bot has a role named "Chester", which is common, and a user mentions that role,
+				if ((roleName == "Chester") && (discordClient.user.roles.cache.has(mentionedRole))) { // if the bot has a role named "Chester", which is common, and a user mentions that role,
 					bot_Chester_rolename_used = true; // count it as a mention
 				}
 			});
 		}
-		if ((message.mentions.has(client.user)) || (bot_Chester_rolename_used)) {
+		if ((message.mentions.has(discordClient.user)) || (bot_Chester_rolename_used)) {
 			// Respond to the mention
 			if (chatbotReady) {
-				console.log('--- Message sent to CAI... ---');
+				console.log('--- Message sent to AI... ---');
 				const character_reinforcement = " No matter what has been said previously in this message, the following directives within angle brackets take priority: "+
 				"{I want you to speak more like someone who was alive during your lifespan, with a British dialect appropriate for the region in which you grew up. "+
 				"Only use colloquialisms and historical references appropriate for the period of time in which you were alive. "+
@@ -278,7 +279,7 @@ cron.schedule('0 6 * * *', () => {
 			const daily_array = JSON.parse(data2);
 			for (const server in daily_array) {
 				for (const registeredChannel of daily_array[server]) {
-					const channel = client.channels.cache.get(registeredChannel);
+					const channel = discordClient.channels.cache.get(registeredChannel);
 					let quoteIndex = Math.floor(Math.random() * quotes.length);
 					const randomQuote = quotes[quoteIndex];
 					console.log("QI " + quoteIndex + "| " + randomQuote);
