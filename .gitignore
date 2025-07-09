@@ -5,13 +5,7 @@ daily_list.json
 deploy-commands.js
 *.zip
 node_modules/*
-package.json
-package-lock.json
 quote_library.txt
 retrieve_quote_library.js
-package-lock.json
-package.json
 info.txt
-package-lock.json
-package.json
 .env
