@@ -26,13 +26,13 @@ sudo apt-get install -y libnss3 libgconf-2-4 libxss1 libasound2
 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
 source ~/.nvm/nvm.sh
 
-# Install Node.js version 22.9.0
-nvm install 22.9.0
-nvm use 22.9.0
-nvm alias default 22.9.0
+# Install Node.js version 21.2.0
+nvm install 21.2.0
+nvm use 21.2.0
+nvm alias default 21.2.0
 
-# Install the dependencies
-npm install axios@^1.7.7 discord.js@^14.16.2 jsdom@^25.0.1 node_characterai@^1.2.7 node-cron@^3.0.3
+# Install the project dependencies
+npm install axios@^1.6.3 discord.js@^14.14.1 jsdom@^23.0.1 @huggingface/inference@^4.4.0 dotenv@^17.1.0 grep@^0.1.0 node-cron@^3.0.3
 
 
 You will also need to create a Discord bot to handle interaction with the Discord
