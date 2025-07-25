@@ -184,7 +184,27 @@ function cleanMessageContent(messageContent) {
 		const parsed = JSON.parse(content);
 		if (parsed && typeof parsed === 'object') {
 			// Use the first element if it's an array or the first value if it's an object.
-			content = Array.isArray(parsed) ? parsed[0] : Object.values(parsed)[0];
+			if (Array.isArray(parsed)) {
+				// If the first element has an "author" key and there's a second element, use that.
+				if (
+					parsed.length > 1 &&
+					parsed[0] !== null &&
+					typeof parsed[0] === 'object' &&
+					Object.prototype.hasOwnProperty.call(parsed[0], 'author')
+				) {
+					content = parsed[1];
+				} else {
+					content = parsed[0];
+				}
+			} else {
+				const entries = Object.entries(parsed);
+				// If the first entry's key is "author" and there's another entry, take the next one.
+				if (entries.length > 1 && entries[0][0] === 'author') {
+					content = entries[1][1];
+				} else {
+					content = entries[0][1];
+				}
+			}
 			console.log("Parsed message content:", content);
 			if (typeof content !== 'string') {
 				content = String(content);
