@@ -95,7 +95,7 @@ async function askAI21(instructions, prompt) {
 			temperature: 1,
 			top_p: 1,
 			stop: [],
-			response_format: { type: "json_object" }
+			response_format: { type: "text" }
 		})
 	});
 	
@@ -213,6 +213,9 @@ function cleanMessageContent(messageContent) {
 	} catch (err) {
 		// Not valid JSON, leave content as-is.
 	}
+
+	// Remove substrings matching the pattern "Context: xxxxx:"
+	content = content.replace(/Context: [^:]+:/g, '');
 
 	// Remove curly braces.
 	return content.replace(/[{}]/g, '');
