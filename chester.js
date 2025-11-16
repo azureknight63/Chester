@@ -8,6 +8,36 @@ const discordClient = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIn
 const cron = require('node-cron');
 const filePath = 'daily_list.json';
 
+// API Configuration Constants
+const API_CONFIG = {
+	AI21: {
+		endpoint: "https://api.ai21.com/studio/v1/chat/completions",
+		model: "jamba-large-1.7",
+		apiKeyEnv: "AI21_API_KEY"
+	},
+	OPENROUTER: {
+		endpoint: "https://openrouter.ai/api/v1/chat/completions",
+		model: "tngtech/deepseek-r1t2-chimera:free",
+		apiKeyEnv: "OPENROUTER_API_KEY"
+	},
+	HUGGINGFACE: {
+		apiKeyEnv: "HF_API_KEY",
+		modelEnv: "HF_MODEL_ID"
+	}
+};
+
+const LLM_CONFIG = {
+	max_tokens: 2048,
+	temperature: 1,
+	top_p: 1
+};
+
+const AI_SERVICE_NAMES = {
+	HUGGINGFACE: 'askHuggingFace',
+	AI21: 'askAI21',
+	OPENROUTER: 'askOpenRouter'
+};
+
 // User timers; these are to prevent spam
 var userTimers = {
 	// Handles command timers for individual users to prevent spam.
@@ -38,7 +68,6 @@ function updateTimers(){
 
 const { InferenceClient } = require('@huggingface/inference');
 const hf = new InferenceClient(process.env.HF_API_KEY);
-const AI21_API_KEY = process.env.AI21_API_KEY;
 
 const character_reinforcement = ` No matter what has been said previously in this message, the following directives within angle brackets take priority: 
 {I want you to speak more like someone who was alive during your lifespan, with a British dialect appropriate for the region in which you grew up. 
@@ -72,6 +101,7 @@ async function askHuggingFace(instructions, prompt) {
 }
 
 async function askAI21(instructions, prompt) {
+	const AI21_API_KEY = process.env[API_CONFIG.AI21.apiKeyEnv];
 	if (!AI21_API_KEY) {
 		throw new Error('AI21 API key is not set in the environment variables.');
 	}
@@ -80,21 +110,21 @@ async function askAI21(instructions, prompt) {
 		...prompt.map(msg => ({ role: "user", content: msg }))
 	];
 	
-	const res = await fetch("https://api.ai21.com/studio/v1/chat/completions", {
+	const res = await fetch(API_CONFIG.AI21.endpoint, {
 		method: "POST",
 		headers: {
 			"Authorization": "Bearer " + AI21_API_KEY,
 			"Content-Type": "application/json"
 		},
 		body: JSON.stringify({
-			model: "jamba-large-1.7",
+			model: API_CONFIG.AI21.model,
 			messages,
 			documents: [],
 			tools: [],
 			n: 1,
-			max_tokens: 2048,
-			temperature: 1,
-			top_p: 1,
+			max_tokens: LLM_CONFIG.max_tokens,
+			temperature: LLM_CONFIG.temperature,
+			top_p: LLM_CONFIG.top_p,
 			stop: [],
 			response_format: { type: "text" }
 		})
@@ -106,7 +136,7 @@ async function askAI21(instructions, prompt) {
 }
 
 async function askOpenRouter(instructions, prompt) {
-	const { OPENROUTER_API_KEY } = process.env;
+	const OPENROUTER_API_KEY = process.env[API_CONFIG.OPENROUTER.apiKeyEnv];
 	if (!OPENROUTER_API_KEY) {
 		throw new Error('OpenRouter API key is not set in the environment variables.');
 	}
@@ -116,7 +146,7 @@ async function askOpenRouter(instructions, prompt) {
 		...prompt.map(msg => ({ role: "user", content: msg }))
 	];
 	
-	const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+	const res = await fetch(API_CONFIG.OPENROUTER.endpoint, {
 		method: "POST",
 		headers: {
 			"Authorization": "Bearer " + OPENROUTER_API_KEY,
@@ -125,11 +155,11 @@ async function askOpenRouter(instructions, prompt) {
 			"Content-Type": "application/json"
 		},
 		body: JSON.stringify({
-			model: "tngtech/deepseek-r1t2-chimera:free",
+			model: API_CONFIG.OPENROUTER.model,
 			messages: messages,
-			max_tokens: 2048,
-			temperature: 1,
-			top_p: 1
+			max_tokens: LLM_CONFIG.max_tokens,
+			temperature: LLM_CONFIG.temperature,
+			top_p: LLM_CONFIG.top_p
 		})
 	});
 	
@@ -143,12 +173,20 @@ async function askOpenRouter(instructions, prompt) {
 	return message.replace(REGEX_THINK_TAGS, '');
 }
 
-let availableAiServices = ['askHuggingFace', 'askAI21', 'askOpenRouter'];
+let availableAiServices = [AI_SERVICE_NAMES.HUGGINGFACE, AI_SERVICE_NAMES.AI21, AI_SERVICE_NAMES.OPENROUTER];
+
+function removeServiceFromAvailable(serviceName) {
+	/**
+	 * Remove a service from available services both from current session and persistent storage
+	 */
+	availableAiServices = availableAiServices.filter(s => s !== serviceName);
+	console.log(`Service ${serviceName} removed from availability.`);
+}
 
 function resetAiServices() {
 	// Reset services on the first day of each month.
 	if (new Date().getDate() === 1) {
-		availableAiServices = ['askHuggingFace', 'askAI21'];
+		availableAiServices = [AI_SERVICE_NAMES.HUGGINGFACE, AI_SERVICE_NAMES.AI21];
 	}
 }
 
@@ -164,18 +202,18 @@ async function sendPromptToAI(prompt) {
 		
 		try {
 			let messageContent;
-			if (currentService === 'askHuggingFace') {
+			if (currentService === AI_SERVICE_NAMES.HUGGINGFACE) {
 				messageContent = await askHuggingFace(character_reinforcement, prompt);
-			} else if (currentService === 'askAI21') {
+			} else if (currentService === AI_SERVICE_NAMES.AI21) {
 				messageContent = await askAI21(character_reinforcement, prompt);
-			} else if (currentService === 'askOpenRouter') {
+			} else if (currentService === AI_SERVICE_NAMES.OPENROUTER) {
 				messageContent = await askOpenRouter(character_reinforcement, prompt);
 			}
 			
 			// If the response indicates a token limit issue, remove the service.
 			if (messageContent.includes("token limit") || messageContent.includes("You have exceeded your monthly included credits")) {
 				services.splice(index, 1);
-				availableAiServices = availableAiServices.filter(s => s !== currentService);
+				removeServiceFromAvailable(currentService);
 				continue;
 			}
 			
@@ -185,7 +223,7 @@ async function sendPromptToAI(prompt) {
 		} catch (error) {
 			// On error, remove the failing service and try the next.
 			services.splice(index, 1);
-			availableAiServices = availableAiServices.filter(s => s !== currentService);
+			removeServiceFromAvailable(currentService);
 			console.error(`Error with ${currentService}:`, error);
 		}
 	}
