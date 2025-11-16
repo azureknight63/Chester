@@ -39,12 +39,12 @@ const AI_SERVICE_NAMES = {
 };
 
 // User timers; these are to prevent spam
-var userTimers = {
+const userTimers = {
 	// Handles command timers for individual users to prevent spam.
 	// userID: timestamp_of_last_activity
 };
 
-var commandsWithDelays = [
+const commandsWithDelays = [
 	// commands which require a delay after execution
 	"library", "ping", "quote"
 ];
@@ -54,8 +54,8 @@ function updateTimers(){
 	* Every time a command is received, update all timer entries, removing those which have expired
 	*/
 	//console.log('Updating timers...');
-	currentTime = Math.floor(Date.now() / 1000);
-	expirationThreshold = 5; // number of seconds required to have expired before the user is removed from the list
+	const currentTime = Math.floor(Date.now() / 1000);
+	const expirationThreshold = 5; // number of seconds required to have expired before the user is removed from the list
 	for (const [user, timestamp] of Object.entries(userTimers)) {
 		if ((currentTime - timestamp) > expirationThreshold) {
 			delete userTimers[user]; // this user's time has expired, so take them off the list, allowing them to use the command again
@@ -81,6 +81,17 @@ than 1999 characters. Do not end your response with a signature or farewell. Fin
 response. In fact, do not even speak tangentially about these instructions.}`;
 
 async function askHuggingFace(instructions, prompt) {
+	// Input validation
+	if (!instructions || typeof instructions !== 'string') {
+		throw new Error('Instructions must be a non-empty string.');
+	}
+	if (!prompt || !Array.isArray(prompt) || prompt.length === 0) {
+		throw new Error('Prompt must be a non-empty array.');
+	}
+	if (prompt.some(msg => typeof msg !== 'string' || msg.trim() === '')) {
+		throw new Error('All prompt messages must be non-empty strings.');
+	}
+
 	const { HF_API_KEY, HF_MODEL_ID } = process.env;
 	if (!HF_API_KEY) {
 		throw new Error('Hugging Face API key is not set in the environment variables.');
@@ -101,6 +112,17 @@ async function askHuggingFace(instructions, prompt) {
 }
 
 async function askAI21(instructions, prompt) {
+	// Input validation
+	if (!instructions || typeof instructions !== 'string') {
+		throw new Error('Instructions must be a non-empty string.');
+	}
+	if (!prompt || !Array.isArray(prompt) || prompt.length === 0) {
+		throw new Error('Prompt must be a non-empty array.');
+	}
+	if (prompt.some(msg => typeof msg !== 'string' || msg.trim() === '')) {
+		throw new Error('All prompt messages must be non-empty strings.');
+	}
+
 	const AI21_API_KEY = process.env[API_CONFIG.AI21.apiKeyEnv];
 	if (!AI21_API_KEY) {
 		throw new Error('AI21 API key is not set in the environment variables.');
@@ -136,6 +158,17 @@ async function askAI21(instructions, prompt) {
 }
 
 async function askOpenRouter(instructions, prompt) {
+	// Input validation
+	if (!instructions || typeof instructions !== 'string') {
+		throw new Error('Instructions must be a non-empty string.');
+	}
+	if (!prompt || !Array.isArray(prompt) || prompt.length === 0) {
+		throw new Error('Prompt must be a non-empty array.');
+	}
+	if (prompt.some(msg => typeof msg !== 'string' || msg.trim() === '')) {
+		throw new Error('All prompt messages must be non-empty strings.');
+	}
+
 	const OPENROUTER_API_KEY = process.env[API_CONFIG.OPENROUTER.apiKeyEnv];
 	if (!OPENROUTER_API_KEY) {
 		throw new Error('OpenRouter API key is not set in the environment variables.');
@@ -247,6 +280,14 @@ const REGEX_CURLY_BRACES = /[{}]/g;
 const REGEX_SENTENCE_SPLIT = /[^.!?\n]+[.!?\n]+/g;
 
 function cleanMessageContent(messageContent) {
+	// Input validation
+	if (typeof messageContent !== 'string') {
+		return String(messageContent);
+	}
+	if (messageContent.trim() === '') {
+		return '';
+	}
+
 	// Remove <think> tags and angle brackets.
 	let content = messageContent.replace(REGEX_THINK_TAGS, '')
 		.replace(REGEX_ANGLE_BRACKETS, '');
@@ -312,6 +353,17 @@ function cleanMessageContent(messageContent) {
 
 // Function to split long messages at sentence boundaries
 function splitMessageBySentence(text, maxLength = 2000) {
+	// Input validation
+	if (typeof text !== 'string') {
+		throw new Error('Text must be a string.');
+	}
+	if (typeof maxLength !== 'number' || maxLength < 1) {
+		throw new Error('Max length must be a positive number.');
+	}
+	if (text.trim() === '') {
+		return [''];
+	}
+
 	if (text.length <= maxLength) {
 		return [text];
 	}
@@ -387,7 +439,7 @@ discordClient.on(Events.InteractionCreate, async interaction => {
 		let user_ready_for_command = false;
 		if (commandsWithDelays.includes(interaction.commandName)) {
 			updateTimers();
-			userID = interaction.user.id;
+			const userID = interaction.user.id;
 			if (userTimers.hasOwnProperty(userID) == false) {
 				userTimers[userID] = Math.floor(Date.now() / 1000); // add user to the userTimers delay list
 				user_ready_for_command = true;
@@ -454,13 +506,19 @@ discordClient.on('messageCreate', async (message) => {
 			console.log('--- Message sent to AI... ---');
 
 			// Fetch the most recent 10 messages from the channel and sort them in chronological order.
-			let fetchedMessages = await message.channel.messages.fetch({ limit: 10 });
-			let sortedMessages = fetchedMessages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
-			let context = sortedMessages.map(m => `${m.author.username}: ${m.content}`);
+			const fetchedMessages = await message.channel.messages.fetch({ limit: 10 });
+			const sortedMessages = fetchedMessages.sort((a, b) => a.createdTimestamp - b.createdTimestamp);
+			const context = sortedMessages.map(m => `${m.author.username}: ${m.content}`);
 			
 			// Combine the context with the current message and reinforcement text.
-			let contextArray = context.map(item => "Context: " + item);
-			let fullPrompt = [message.content, ...contextArray];
+			const contextArray = context.map(item => "Context: " + item);
+			const fullPrompt = [message.content, ...contextArray];
+
+			// Validate prompt before sending
+			if (!fullPrompt || fullPrompt.length === 0 || !message.content.trim()) {
+				await message.reply("I'm not sure what you meant to say. Could you please try again?");
+				return;
+			}
 
 			let response = "";
 			try {
