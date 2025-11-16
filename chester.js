@@ -422,7 +422,8 @@ discordClient.on('messageCreate', async (message) => {
 				response = await sendPromptToAI(fullPrompt);
 			} catch(error) {
 				console.error('Error conversing with LLM: ' + error);
-				message.reply("My apologies, but I'm a bit confused with what you were saying. Would you mind trying again?");
+				await message.reply("My apologies, but I'm a bit confused with what you were saying. Would you mind trying again?");
+				return;
 			}
 			console.log('--- RESPONSE FROM BOT ---');
 			console.log(response);
