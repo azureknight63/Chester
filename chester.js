@@ -10,7 +10,27 @@ const {
 	removeService,
 	REGEX_THINK_TAGS
 } = require('./utils');
-const discordToken = process.env.DISCORD_TOKEN;
+
+/**
+ * Environment-based Bot Credential Selection
+ * 
+ * APP_ENV determines which bot credentials are used:
+ * - "dev" (default): Uses TEST_DISCORD_TOKEN and TEST_DISCORD_CLIENT_ID
+ * - "prod": Uses PROD_DISCORD_TOKEN and PROD_DISCORD_CLIENT_ID
+ * 
+ * Set APP_ENV in .env file to switch between test and production bots.
+ */
+const APP_ENV = process.env.APP_ENV || 'dev';
+const discordToken = APP_ENV === 'prod' 
+	? process.env.PROD_DISCORD_TOKEN 
+	: process.env.TEST_DISCORD_TOKEN;
+const discordClientId = APP_ENV === 'prod'
+	? process.env.PROD_DISCORD_CLIENT_ID
+	: process.env.TEST_DISCORD_CLIENT_ID;
+
+console.log(`[INFO] Environment: ${APP_ENV}`);
+console.log(`[INFO] Using bot: ${APP_ENV === 'prod' ? 'PRODUCTION' : 'TEST'}`);
+
 const discordClient = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
 const cron = require('node-cron');
 const filePath = 'daily_list.json';
@@ -356,7 +376,7 @@ discordClient.on(Events.InteractionCreate, async interaction => {
 
 discordClient.login(discordToken);
 
-discordClient.on('ready', () => {
+discordClient.on('clientReady', () => {
   console.log(`Logged in to Discord as ${discordClient.user.tag}!`);
 });
 
