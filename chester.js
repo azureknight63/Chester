@@ -68,7 +68,7 @@ async function askHuggingFace(instructions, prompt) {
 	});
 
 	const messageContent = response.choices?.[0]?.message?.content || "I am not sure how to respond to that.";
-	return messageContent.replace(/<think>[\s\S]*?<\/think>/gi, '');
+	return messageContent.replace(REGEX_THINK_TAGS, '');
 }
 
 async function askAI21(instructions, prompt) {
@@ -102,7 +102,7 @@ async function askAI21(instructions, prompt) {
 	
 	const data = await res.json();
 	let message = data.choices?.[0]?.message?.content || "I am not sure how to respond to that.";
-	return message.replace(/<think>[\s\S]*?<\/think>/gi, '');
+	return message.replace(REGEX_THINK_TAGS, '');
 }
 
 async function askOpenRouter(instructions, prompt) {
@@ -140,7 +140,7 @@ async function askOpenRouter(instructions, prompt) {
 	
 	const data = await res.json();
 	let message = data.choices?.[0]?.message?.content || "I am not sure how to respond to that.";
-	return message.replace(/<think>[\s\S]*?<\/think>/gi, '');
+	return message.replace(REGEX_THINK_TAGS, '');
 }
 
 let availableAiServices = ['askHuggingFace', 'askAI21', 'askOpenRouter'];
@@ -201,10 +201,17 @@ if (process.env.APP_ENV === 'dev') {
 	});
 }
 
+// Cached regex patterns for performance
+const REGEX_THINK_TAGS = /<think>[\s\S]*?<\/think>/gi;
+const REGEX_ANGLE_BRACKETS = /[<>]/g;
+const REGEX_CONTEXT_PATTERN = /Context: [^:]+:/g;
+const REGEX_CURLY_BRACES = /[{}]/g;
+const REGEX_SENTENCE_SPLIT = /[^.!?\n]+[.!?\n]+/g;
+
 function cleanMessageContent(messageContent) {
 	// Remove <think> tags and angle brackets.
-	let content = messageContent.replace(/<think>[\s\S]*?<\/think>/gi, '')
-		.replace(/[<>]/g, '');
+	let content = messageContent.replace(REGEX_THINK_TAGS, '')
+		.replace(REGEX_ANGLE_BRACKETS, '');
 
 	if (content.trim().startsWith('[') && content.trim().endsWith(']')) {
 		try {
@@ -259,10 +266,10 @@ function cleanMessageContent(messageContent) {
 	}
 
 	// Remove substrings matching the pattern "Context: xxxxx:"
-	content = content.replace(/Context: [^:]+:/g, '');
+	content = content.replace(REGEX_CONTEXT_PATTERN, '');
 
 	// Remove curly braces.
-	return content.replace(/[{}]/g, '');
+	return content.replace(REGEX_CURLY_BRACES, '');
 }
 
 // Function to split long messages at sentence boundaries
@@ -275,7 +282,7 @@ function splitMessageBySentence(text, maxLength = 2000) {
 	let currentMessage = '';
 
 	// Split by sentences using common sentence delimiters
-	const sentences = text.match(/[^.!?\n]+[.!?\n]+/g) || [text];
+	const sentences = text.match(REGEX_SENTENCE_SPLIT) || [text];
 
 	for (const sentence of sentences) {
 		// If adding this sentence would exceed the limit and we have content, start a new message
