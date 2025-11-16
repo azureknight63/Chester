@@ -104,7 +104,45 @@ async function askAI21(instructions, prompt) {
 	return message.replace(/<think>[\s\S]*?<\/think>/gi, '');
 }
 
-let availableAiServices = ['askHuggingFace', 'askAI21'];
+async function askOpenRouter(instructions, prompt) {
+	const { OPENROUTER_API_KEY } = process.env;
+	if (!OPENROUTER_API_KEY) {
+		throw new Error('OpenRouter API key is not set in the environment variables.');
+	}
+	
+	const messages = [
+		{ role: "system", content: instructions },
+		...prompt.map(msg => ({ role: "user", content: msg }))
+	];
+	
+	const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+		method: "POST",
+		headers: {
+			"Authorization": "Bearer " + OPENROUTER_API_KEY,
+			"HTTP-Referer": "https://github.com/azureknight63/Chester",
+			"X-Title": "Chester Discord Bot",
+			"Content-Type": "application/json"
+		},
+		body: JSON.stringify({
+			model: "tngtech/deepseek-r1t2-chimera:free",
+			messages: messages,
+			max_tokens: 2048,
+			temperature: 1,
+			top_p: 1
+		})
+	});
+	
+	if (!res.ok) {
+		const errorData = await res.json();
+		throw new Error(`OpenRouter API error: ${res.status} - ${errorData.error?.message || 'Unknown error'}`);
+	}
+	
+	const data = await res.json();
+	let message = data.choices?.[0]?.message?.content || "I am not sure how to respond to that.";
+	return message.replace(/<think>[\s\S]*?<\/think>/gi, '');
+}
+
+let availableAiServices = ['askHuggingFace', 'askAI21', 'askOpenRouter'];
 
 function resetAiServices() {
 	// Reset services on the first day of each month.
@@ -127,8 +165,10 @@ async function sendPromptToAI(prompt) {
 			let messageContent;
 			if (currentService === 'askHuggingFace') {
 				messageContent = await askHuggingFace(character_reinforcement, prompt);
-			} else {
+			} else if (currentService === 'askAI21') {
 				messageContent = await askAI21(character_reinforcement, prompt);
+			} else if (currentService === 'askOpenRouter') {
+				messageContent = await askOpenRouter(character_reinforcement, prompt);
 			}
 			
 			// If the response indicates a token limit issue, remove the service.
@@ -153,9 +193,12 @@ async function sendPromptToAI(prompt) {
 	return "Dear me, I am rather tired at this time. Please wait until the first of the month to try again so I have time to rest.";
 }
 
-sendPromptToAI(["Hello to you."]).then(testAi => {
-	console.log(testAi);
-});
+// Run startup test only in development mode
+if (process.env.APP_ENV === 'dev') {
+	sendPromptToAI(["Hello to you."]).then(testAi => {
+		console.log(testAi);
+	});
+}
 
 function cleanMessageContent(messageContent) {
 	// Remove <think> tags and angle brackets.
@@ -219,6 +262,36 @@ function cleanMessageContent(messageContent) {
 
 	// Remove curly braces.
 	return content.replace(/[{}]/g, '');
+}
+
+// Function to split long messages at sentence boundaries
+function splitMessageBySentence(text, maxLength = 2000) {
+	if (text.length <= maxLength) {
+		return [text];
+	}
+
+	const messages = [];
+	let currentMessage = '';
+
+	// Split by sentences using common sentence delimiters
+	const sentences = text.match(/[^.!?\n]+[.!?\n]+/g) || [text];
+
+	for (const sentence of sentences) {
+		// If adding this sentence would exceed the limit and we have content, start a new message
+		if ((currentMessage + sentence).length > maxLength && currentMessage.length > 0) {
+			messages.push(currentMessage.trim());
+			currentMessage = sentence;
+		} else {
+			currentMessage += sentence;
+		}
+	}
+
+	// Add any remaining content
+	if (currentMessage.trim().length > 0) {
+		messages.push(currentMessage.trim());
+	}
+
+	return messages;
 }
 
 // end Chatbot setup
@@ -353,7 +426,12 @@ discordClient.on('messageCreate', async (message) => {
 			}
 			console.log('--- RESPONSE FROM BOT ---');
 			console.log(response);
-			message.reply(response);
+			
+			// Split the response into messages that respect Discord's 2000 character limit
+			const splitMessages = splitMessageBySentence(response);
+			for (const msg of splitMessages) {
+				await message.reply(msg);
+			}
 		}
 	} catch(error) {
 		console.log("Error in LLM messaging: " + error);
@@ -375,7 +453,7 @@ cron.schedule('0 6 * * *', () => {
 			quotes[index].message = '## "' + quote.message;
 		}
 		console.log('Executing daily cron...');
-		fs.readFile('daily_list.json', 'utf8', (err, data2) => { // load our list of server/channel output locations
+		fs.readFile('daily_list.json', 'utf8', async (err, data2) => { // load our list of server/channel output locations
 			if (err) {
 				console.log("Err in reading daily_list; " + err);
 			  console.error(err);
@@ -390,7 +468,12 @@ cron.schedule('0 6 * * *', () => {
 					console.log("QI " + quoteIndex + "| " + randomQuote);
 					console.log("quote selected...");
 					try {
-						channel.send(randomQuote);
+						// Convert quote object to string and split if necessary
+						const quoteString = typeof randomQuote === 'object' ? JSON.stringify(randomQuote) : String(randomQuote);
+						const splitQuotes = splitMessageBySentence(quoteString);
+						for (const quoteMsg of splitQuotes) {
+							await channel.send(quoteMsg);
+						}
 						console.log('Daily dispatched to ' + server + ': ' + channel.name);
 					} catch (error) {console.error('An error occurred: ', error)}
 				}
