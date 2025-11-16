@@ -427,7 +427,7 @@ discordClient.on('messageCreate', async (message) => {
 			// Send placeholder message
 			let placeholderMessage;
 			try {
-				placeholderMessage = await message.reply("Chester is thinking...");
+				placeholderMessage = await message.reply("*Chester is thinking...*");
 			} catch(error) {
 				console.error('Error sending placeholder message: ' + error);
 				return;
