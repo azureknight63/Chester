@@ -9,3 +9,10 @@ quote_library.txt
 retrieve_quote_library.js
 info.txt
 .env
+
+# Test and Coverage Files
+coverage/
+.coverage
+*.lcov
+.nyc_output/
+__tests__/
