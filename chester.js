@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const fsp = require('node:fs').promises;
 const path = require('node:path');
 require('dotenv').config();
 const { Client, Events, GatewayIntentBits, Collection, SlashCommandBuilder } = require('discord.js');
@@ -313,23 +314,22 @@ for (const file of commandFiles) {
 }
 
 // Create the daily_list ledger
-fs.access(filePath, fs.constants.F_OK, (err) => {
-  if (err) {
-    console.log('File daily_list.json does not exist');
-	const baseArray = {
-		668868202721312798: ['668868203195400234']
-	};
-	jsonData = JSON.stringify(baseArray);
-	fs.writeFile('daily_list.json', jsonData, 'utf8', (err) => {
-	  if (err) {
-		console.error(err);
-		return false;
-	  }
-	});
-  } else {
-    console.log('File daily_list.json exists');
-  }
-});
+(async () => {
+	try {
+		await fsp.access(filePath, fs.constants.F_OK);
+		console.log('File daily_list.json exists');
+	} catch (err) {
+		console.log('File daily_list.json does not exist');
+		const baseArray = {
+			668868202721312798: ['668868203195400234']
+		};
+		try {
+			await fsp.writeFile('daily_list.json', JSON.stringify(baseArray), 'utf8');
+		} catch (writeErr) {
+			console.error('Error creating daily_list.json:', writeErr);
+		}
+	}
+})();
 
 discordClient.on(Events.InteractionCreate, async interaction => {
 	console.log(`${interaction.user.tag} in #${interaction.channel.name} triggered an interaction.`);
@@ -441,43 +441,49 @@ discordClient.on('messageCreate', async (message) => {
 
 // end Chatbot interaction
 
-cron.schedule('0 6 * * *', () => {
-	const quoteFilePath = 'quote_library.json';
-	fs.readFile(quoteFilePath, 'utf8', (error, data) => {
-		if (error) {
-		  console.error('Error reading file:', error);
-		  return;
-		}
-		var quotes = JSON.parse(data);
+cron.schedule('0 6 * * *', async () => {
+	try {
+		const quoteFilePath = 'quote_library.json';
+		const quoteData = await fsp.readFile(quoteFilePath, 'utf8');
+		const quotes = JSON.parse(quoteData);
+		
+		// Add formatting to quotes
 		for (const [index, quote] of quotes.entries()) {
 			quotes[index].message = '## "' + quote.message;
 		}
+		
 		console.log('Executing daily cron...');
-		fs.readFile('daily_list.json', 'utf8', async (err, data2) => { // load our list of server/channel output locations
-			if (err) {
-				console.log("Err in reading daily_list; " + err);
-			  console.error(err);
-			  return;
-			}
-			const daily_array = JSON.parse(data2);
-			for (const server in daily_array) {
-				for (const registeredChannel of daily_array[server]) {
+		
+		const dailyData = await fsp.readFile('daily_list.json', 'utf8');
+		const daily_array = JSON.parse(dailyData);
+		
+		for (const server in daily_array) {
+			for (const registeredChannel of daily_array[server]) {
+				try {
 					const channel = discordClient.channels.cache.get(registeredChannel);
-					let quoteIndex = Math.floor(Math.random() * quotes.length);
+					if (!channel) {
+						console.warn(`Channel ${registeredChannel} not found`);
+						continue;
+					}
+					
+					const quoteIndex = Math.floor(Math.random() * quotes.length);
 					const randomQuote = quotes[quoteIndex];
-					console.log("QI " + quoteIndex + "| " + randomQuote);
-					console.log("quote selected...");
-					try {
-						// Convert quote object to string and split if necessary
-						const quoteString = typeof randomQuote === 'object' ? JSON.stringify(randomQuote) : String(randomQuote);
-						const splitQuotes = splitMessageBySentence(quoteString);
-						for (const quoteMsg of splitQuotes) {
-							await channel.send(quoteMsg);
-						}
-						console.log('Daily dispatched to ' + server + ': ' + channel.name);
-					} catch (error) {console.error('An error occurred: ', error)}
+					console.log(`QI ${quoteIndex}: ${randomQuote}`);
+					
+					const quoteString = typeof randomQuote === 'object' ? JSON.stringify(randomQuote) : String(randomQuote);
+					const splitQuotes = splitMessageBySentence(quoteString);
+					
+					for (const quoteMsg of splitQuotes) {
+						await channel.send(quoteMsg);
+					}
+					
+					console.log(`Daily dispatched to ${server}: ${channel.name}`);
+				} catch (error) {
+					console.error(`Error sending daily quote to ${registeredChannel}:`, error);
 				}
 			}
-		});
-	});
+		}
+	} catch (error) {
+		console.error('Error in daily cron job:', error);
+	}
 });
