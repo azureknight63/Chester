@@ -8,6 +8,8 @@ const {
 	splitMessageBySentence,
 } = require('./utils');
 const llm = require('./llm');
+const analytics = require('./analytics');
+const analyticsReport = require('./analyticsReport');
 
 /**
  * Environment-based Bot Credential Selection
@@ -90,9 +92,11 @@ async function sendPromptToAI(promptLines) {
 			max_tokens: 8192,
 			temperature: 1,
 		});
+		analytics.recordLlmCall(true).catch(() => { });
 		return cleanMessageContent(text);
 	} catch (err) {
 		console.error('[Chester] All LLM models exhausted:', err.message);
+		analytics.recordLlmCall(false).catch(() => { });
 		return "Dear me, I am rather tired at this time. Please try again later.";
 	}
 }
@@ -164,6 +168,7 @@ discordClient.on(Events.InteractionCreate, async interaction => {
 		if (user_ready_for_command) {
 			try {
 				await command.execute(interaction);
+				analytics.recordCommand(interaction.commandName).catch(() => { });
 			} catch (error) {
 				console.error(error);
 				if (interaction.replied || interaction.deferred) {
@@ -216,6 +221,7 @@ discordClient.on('messageCreate', async (message) => {
 		if ((message.mentions.has(discordClient.user)) || (bot_Chester_rolename_used)) {
 			// Respond to the mention
 			console.log('--- Message sent to AI... ---');
+			analytics.recordChat(message.guildId).catch(() => { });
 
 			// Fetch the most recent 10 messages from the channel and sort them in chronological order.
 			const fetchedMessages = await message.channel.messages.fetch({ limit: 10 });
@@ -283,6 +289,30 @@ discordClient.on('messageCreate', async (message) => {
 
 // end Chatbot interaction
 
+// ---------------------------------------------------------------------------
+// Analytics: uptime heartbeat — fires every minute
+// ---------------------------------------------------------------------------
+cron.schedule('* * * * *', () => {
+	analytics.recordUptimeTick().catch(() => { });
+});
+
+// ---------------------------------------------------------------------------
+// Analytics: weekly report — every Monday at 09:00 UTC
+// ---------------------------------------------------------------------------
+cron.schedule('0 9 * * 1', async () => {
+	try {
+		console.log('[Analytics] Generating weekly report...');
+		const currentServerCount = discordClient.guilds.cache.size;
+		const snapshot = await analytics.getSnapshotAndReset(currentServerCount);
+		await analyticsReport.sendReport(snapshot);
+	} catch (err) {
+		console.error('[Analytics] Weekly report failed:', err.message);
+	}
+}, { timezone: 'UTC' });
+
+// ---------------------------------------------------------------------------
+// Daily quote cron — fires at 06:00 EST every day
+// ---------------------------------------------------------------------------
 cron.schedule('0 6 * * *', async () => {
 	try {
 		const quoteFilePath = 'quote_library.json';
