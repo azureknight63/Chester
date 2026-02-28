@@ -3,6 +3,8 @@ module.exports = {
   testEnvironment: 'node',
   collectCoverageFrom: [
     'utils.js',
+    'llm.js',
+    'modelManager.js',
     '!node_modules/**',
     '!__tests__/**'
   ],
