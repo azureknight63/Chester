@@ -5,6 +5,8 @@ module.exports = {
     'utils.js',
     'llm.js',
     'modelManager.js',
+    'analytics.js',
+    'analyticsReport.js',
     '!node_modules/**',
     '!__tests__/**'
   ],
