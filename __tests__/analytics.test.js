@@ -18,6 +18,7 @@ jest.mock('node:fs', () => {
         promises: {
             readFile: jest.fn(),
             writeFile: jest.fn().mockResolvedValue(undefined),
+            rename: jest.fn().mockResolvedValue(undefined),
         },
     };
 });
@@ -77,11 +78,13 @@ describe('recordCommand', () => {
     test('schedules a debounced disk write', async () => {
         await analytics.recordCommand('ping');
         expect(fsp.writeFile).not.toHaveBeenCalled(); // not yet — debounced
+        expect(fsp.rename).not.toHaveBeenCalled();
         jest.runAllTimers();
         // Allow the async write callback to settle.
         await Promise.resolve();
         await Promise.resolve();
         expect(fsp.writeFile).toHaveBeenCalledTimes(1);
+        expect(fsp.rename).toHaveBeenCalledTimes(1);
     });
 });
 
@@ -224,6 +227,7 @@ describe('getSnapshotAndReset', () => {
     test('persists immediately (not debounced) after a reset', async () => {
         await analytics.getSnapshotAndReset(2);
         expect(fsp.writeFile).toHaveBeenCalled();
+        expect(fsp.rename).toHaveBeenCalled();
     });
 
     test('snapshot previousServerCount reflects prior week value', async () => {

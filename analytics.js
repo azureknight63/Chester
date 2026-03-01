@@ -94,10 +94,12 @@ function schedulePersist() {
     }, DEBOUNCE_MS);
 }
 
-/** Immediately writes the current stats to disk. */
+/** Immediately writes the current stats to disk atomically. */
 async function _persistNow() {
     try {
-        await fsp.writeFile(ANALYTICS_FILE, JSON.stringify(_stats, null, 2), 'utf8');
+        const tmpPath = ANALYTICS_FILE + '.tmp';
+        await fsp.writeFile(tmpPath, JSON.stringify(_stats, null, 2), 'utf8');
+        await fsp.rename(tmpPath, ANALYTICS_FILE);
     } catch (err) {
         console.error('[Analytics] Failed to persist stats:', err.message);
     }
