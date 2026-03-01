@@ -14,6 +14,10 @@ info.txt
 .model_cache.json
 .model_cache.json.tmp
 
+# Analytics data
+analytics_data.json
+analytics_data.json.tmp
+
 # Test and Coverage Files
 coverage/
 .coverage
