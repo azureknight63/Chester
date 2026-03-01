@@ -145,12 +145,23 @@ describe('recordLlmCall', () => {
     });
 
     test('accumulates mixed results correctly', async () => {
-        await analytics.recordLlmCall(true);
-        await analytics.recordLlmCall(true);
-        await analytics.recordLlmCall(false);
+        await analytics.recordLlmCall(true, 'model-a');
+        await analytics.recordLlmCall(true, 'model-a');
+        await analytics.recordLlmCall(false, 'model-b');
         const stats = await analytics.getStats();
         expect(stats.llmSuccess).toBe(2);
         expect(stats.llmFailure).toBe(1);
+        expect(stats.modelCounts['model-a']).toBe(2);
+        expect(stats.modelCounts['model-b']).toBe(1);
+    });
+
+    test('ignores null or non-string model names', async () => {
+        await analytics.recordLlmCall(true, null);
+        await analytics.recordLlmCall(true, 123);
+        await analytics.recordLlmCall(true);
+        const stats = await analytics.getStats();
+        expect(stats.llmSuccess).toBe(3);
+        expect(Object.keys(stats.modelCounts)).toHaveLength(0);
     });
 });
 
@@ -175,7 +186,7 @@ describe('getSnapshotAndReset', () => {
     test('returns a snapshot with correct values', async () => {
         await analytics.recordCommand('ping');
         await analytics.recordChat('guildX');
-        await analytics.recordLlmCall(true);
+        await analytics.recordLlmCall(true, 'model-1');
         await analytics.recordUptimeTick();
 
         const snapshot = await analytics.getSnapshotAndReset(5);
@@ -183,6 +194,7 @@ describe('getSnapshotAndReset', () => {
         expect(snapshot.commandCounts['ping']).toBe(1);
         expect(snapshot.chatTotal).toBe(1);
         expect(snapshot.llmSuccess).toBe(1);
+        expect(snapshot.modelCounts['model-1']).toBe(1);
         expect(snapshot.uptimeTicks).toBe(1);
         expect(snapshot.currentServerCount).toBe(5);
     });

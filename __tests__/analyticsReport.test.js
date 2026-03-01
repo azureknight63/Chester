@@ -17,6 +17,7 @@ const {
     formatServerGrowth,
     formatCommandCounts,
     formatChatByGuild,
+    formatModelCounts,
 } = require('../analyticsReport');
 
 // ---------------------------------------------------------------------------
@@ -30,6 +31,7 @@ function makeSnapshot(overrides = {}) {
         chatTotal: 11,
         llmSuccess: 95,
         llmFailure: 5,
+        modelCounts: { 'model-a': 90, 'model-b': 10 },
         uptimeTicks: 9_500,
         windowStart: '2026-02-21T09:00:00.000Z',
         currentServerCount: 7,
@@ -183,6 +185,29 @@ describe('formatChatByGuild', () => {
 });
 
 // ---------------------------------------------------------------------------
+// formatModelCounts
+// ---------------------------------------------------------------------------
+
+describe('formatModelCounts', () => {
+    test('formats counts with relative percentages correctly', () => {
+        const result = formatModelCounts({ 'model-a': 60, 'model-b': 40 });
+        expect(result).toContain('`model-a`: 60.0% (60)');
+        expect(result).toContain('`model-b`: 40.0% (40)');
+    });
+
+    test('returns fallback message when no models were used', () => {
+        expect(formatModelCounts({})).toBe('No models used this week.');
+    });
+
+    test('sorts by usage count descending', () => {
+        const result = formatModelCounts({ 'low-model': 10, 'high-model': 90 });
+        const indexLow = result.indexOf('low-model');
+        const indexHigh = result.indexOf('high-model');
+        expect(indexHigh).toBeLessThan(indexLow);
+    });
+});
+
+// ---------------------------------------------------------------------------
 // sendReport
 // ---------------------------------------------------------------------------
 
@@ -262,6 +287,7 @@ describe('sendReport', () => {
             chatTotal: 0,
             llmSuccess: 0,
             llmFailure: 0,
+            modelCounts: {},
             uptimeTicks: 0,
         });
 

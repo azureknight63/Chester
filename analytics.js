@@ -43,6 +43,8 @@ function makeEmptyStats() {
         // LLM inference outcomes
         llmSuccess: 0,
         llmFailure: 0,
+        // LLM model usage: { modelId: count }
+        modelCounts: {},
         // Uptime heartbeat ticks (each tick = 1 minute)
         uptimeTicks: 0,
         // Timestamp (ISO) when this window started
@@ -165,13 +167,17 @@ async function recordChat(guildId) {
 /**
  * Records the outcome of one LLM inference call.
  * @param {boolean} success
+ * @param {string|null} [modelName]  The model ID returned by llm.chat(), if known.
  */
-async function recordLlmCall(success) {
+async function recordLlmCall(success, modelName = null) {
     await ensureInitialized();
     if (success) {
         _stats.llmSuccess += 1;
     } else {
         _stats.llmFailure += 1;
+    }
+    if (modelName && typeof modelName === 'string') {
+        _stats.modelCounts[modelName] = (_stats.modelCounts[modelName] ?? 0) + 1;
     }
     schedulePersist();
 }

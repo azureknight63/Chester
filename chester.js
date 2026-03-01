@@ -88,11 +88,11 @@ async function sendPromptToAI(promptLines) {
 	];
 
 	try {
-		const { text } = await llm.chat(messages, {
+		const { text, model } = await llm.chat(messages, {
 			max_tokens: 8192,
 			temperature: 1,
 		});
-		analytics.recordLlmCall(true).catch(() => { });
+		analytics.recordLlmCall(true, model).catch(() => { });
 		return cleanMessageContent(text);
 	} catch (err) {
 		console.error('[Chester] All LLM models exhausted:', err.message);

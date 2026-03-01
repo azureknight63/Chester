@@ -86,13 +86,6 @@ function formatCommandCounts(commandCounts) {
         .join('\n');
 }
 
-/**
- * Formats the per-guild chat breakdown.
- * Guilds are identified only by their anonymous hash — not the raw Snowflake.
- *
- * @param {object} chatByGuild  { guildHash: count }
- * @returns {string}
- */
 function formatChatByGuild(chatByGuild) {
     const entries = Object.entries(chatByGuild);
     if (entries.length === 0) return 'No chat interactions this week.';
@@ -100,6 +93,27 @@ function formatChatByGuild(chatByGuild) {
     return entries
         .sort((a, b) => b[1] - a[1])
         .map(([hash, count], i) => `Server ${i + 1} (\`${hash}\`): ${count}`)
+        .join('\n');
+}
+
+/**
+ * Formats the LLM models used and their relative frequency.
+ *
+ * @param {object} modelCounts  { modelName: count }
+ * @returns {string}
+ */
+function formatModelCounts(modelCounts) {
+    const entries = Object.entries(modelCounts);
+    if (entries.length === 0) return 'No models used this week.';
+
+    const total = entries.reduce((sum, [_, count]) => sum + count, 0);
+
+    return entries
+        .sort((a, b) => b[1] - a[1]) // descending by usage
+        .map(([name, count]) => {
+            const pct = ((count / total) * 100).toFixed(1);
+            return `\`${name}\`: ${pct}% (${count})`;
+        })
         .join('\n');
 }
 
@@ -128,6 +142,7 @@ async function sendReport(snapshot) {
         chatTotal = 0,
         llmSuccess = 0,
         llmFailure = 0,
+        modelCounts = {},
         uptimeTicks = 0,
         windowStart = 'unknown',
         currentServerCount = null,
@@ -171,6 +186,11 @@ async function sendReport(snapshot) {
                 value: formatLlmUptime(llmSuccess, llmFailure),
                 inline: true,
             },
+            {
+                name: '🧠 LLM Models Used',
+                value: formatModelCounts(modelCounts),
+                inline: false,
+            },
         ],
         footer: { text: 'Chester Analytics • anonymous usage stats' },
         timestamp: new Date().toISOString(),
@@ -197,4 +217,5 @@ module.exports = {
     formatServerGrowth,
     formatCommandCounts,
     formatChatByGuild,
+    formatModelCounts,
 };
